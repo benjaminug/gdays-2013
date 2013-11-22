@@ -92,7 +92,7 @@ function deleteVideo($videoId){
 }
 
 // Search
-function findVideo($searchTerm, $startIndex, $maxResults){
+function findVideo($searchTerm, $startIndex=0, $maxResults=30){
 	// create an unauthenticated service object
     $youTubeService = new Zend_Gdata_YouTube();
     $query = $youTubeService->newVideoQuery();
@@ -101,7 +101,7 @@ function findVideo($searchTerm, $startIndex, $maxResults){
     $query->setMaxResults($maxResults);
 
     $feed = $youTubeService->getVideoFeed($query);
-    print_r($feed);
+    return $feed;
 }
 
 // List my videos
@@ -118,7 +118,7 @@ function listVideos(){
         print 'ERROR - Could not retrieve users video feed: ' . $e->getMessage();
         return;
     }
-    print_r($feed);
+    return $feed;
 }
 
 // Update
@@ -175,6 +175,23 @@ function updateVideo($videoId, $newVideoTitle, $newVideoDescription, $newVideoCa
         print 'Entry updated successfully.';
 }
 
+function getTopRated(){
+    $httpClient = getAuthSubHttpClient();
+    $youTubeService = new Zend_Gdata_YouTube($httpClient);
+    $query = $youTubeService->newVideoQuery();
+    $videoFeed = $youTubeService->getTopRatedVideoFeed($query);
+    return getTopRated();
+}
+
+function getTopRatedToday(){
+    $httpClient = getAuthSubHttpClient();
+    $youTubeService = new Zend_Gdata_YouTube($httpClient);
+    $query = $youTubeService->newVideoQuery();
+    $query->setTime('today');
+    $videoFeed = $youTubeService->getTopRatedVideoFeed($query);
+    return $videoFeed;
+}
+
 function getAuthSubHttpClient(){
 	$httpClient = null;
     try {
@@ -187,7 +204,80 @@ function getAuthSubHttpClient(){
     $httpClient->setHeaders('X-GData-Key', 'key=AIzaSyDAG7Rm7mwQWuTq8qjKbdcN3f3uXf-GGNI');
     return $httpClient;
 }
-echo '<pre>';
-print_r(listVideos());
-echo '</pre>';
+
+function printUserPlaylists($user){
+    $httpClient = getAuthSubHttpClient();
+    $yt = new Zend_Gdata_YouTube($httpClient);
+    $playlistListFeed = $yt->getPlaylistListFeed($user);
+
+    foreach ($playlistListFeed as $playlistEntry) {
+        echo $playlistEntry->title->text . "<br>";
+        echo $playlistEntry->description->text . "<br>";
+        
+        $feedUrl = $playlistEntry->getPlaylistVideoFeedUrl();
+        echo $feedUrl . "<br>";
+        echo "<hr>";
+        /*
+        $playlistVideoFeed = $yt->getPlaylistVideoFeed($feedUrl);
+        foreach ($playlistVideoFeed as $videoEntry) {
+            printVideoEntry($videoEntry);
+        }
+        echo "<hr>";
+        break;
+        */
+    }
+    //return $playlistListFeed;
+}
+
+function printVideoEntry($videoEntry) 
+{
+  // the videoEntry object contains many helper functions
+  // that access the underlying mediaGroup object
+  echo 'Video: ' . $videoEntry->getVideoTitle() . "<br>";
+  echo 'Video ID: ' . $videoEntry->getVideoId() . "<br>";
+  echo 'Updated: ' . $videoEntry->getUpdated() . "<br>";
+  echo 'Description: ' . $videoEntry->getVideoDescription() . "<br>";
+  echo 'Category: ' . $videoEntry->getVideoCategory() . "<br>";
+  echo 'Tags: ' . implode(", ", $videoEntry->getVideoTags()) . "<br>";
+  echo 'Watch page: ' . $videoEntry->getVideoWatchPageUrl() . "<br>";
+  echo 'Flash Player Url: ' . $videoEntry->getFlashPlayerUrl() . "<br>";
+  echo 'Duration: ' . $videoEntry->getVideoDuration() . "<br>";
+  echo 'View count: ' . $videoEntry->getVideoViewCount() . "<br>";
+  //pr($videoEntry->getVideoRatingInfo());
+  echo 'Rating: ' . $videoEntry->getVideoRatingInfo()["average"] . "<br>";
+  echo 'Geo Location: ' . $videoEntry->getVideoGeoLocation() . "<br>";
+  echo 'Recorded on: ' . $videoEntry->getVideoRecorded() . "<br>";
+  
+  // see the paragraph above this function for more information on the 
+  // 'mediaGroup' object. in the following code, we use the mediaGroup
+  // object directly to retrieve its 'Mobile RSTP link' child
+  foreach ($videoEntry->mediaGroup->content as $content) {
+    if ($content->type === "video/3gpp") {
+      echo 'Mobile RTSP link: ' . $content->url . "<br>";
+    }
+  }
+  
+  echo "Thumbnails:<br>";
+  $videoThumbnails = $videoEntry->getVideoThumbnails();
+
+  foreach($videoThumbnails as $videoThumbnail) {
+    echo $videoThumbnail['time'] . ' - ' . $videoThumbnail['url'];
+    echo ' height=' . $videoThumbnail['height'];
+    echo ' width=' . $videoThumbnail['width'] . "<br>";
+  }
+
+  echo "<hr>";
+}
+
+function pr($obj){
+    echo '<pre>';
+    print_r($obj);
+    echo '</pre>';    
+}
+
+$videos = printUserPlaylists("CollegeHumor");
+exit();
+foreach ($videos as $video) {
+    printVideoEntry($video);
+}
 ?>
